@@ -22,7 +22,7 @@ keycloak_connection = KeycloakOpenIDConnection(
     realm_name="master",
     client_id="admin-cli",
     client_secret_key=client_secret,
-    verify=True
+    verify=True,
 )
 
 keycloak_admin = KeycloakAdmin(connection=keycloak_connection)
@@ -40,29 +40,27 @@ user_url = f"{base_url}contacts?organisation={organisation_id}&mode=query"
 user = httpx.get(user_url, headers=header)
 data = json.loads(user.text)
 for i in range(50):
-    email_check = keycloak_admin.get_users({"email" : data[i]["mergeTags"]["email"]})
+    email_check = keycloak_admin.get_users({"email": data[i]["mergeTags"]["email"]})
     if email_check:
-        logger.info(f"Nutzer {data[i]["mergeTags"]["email"]} existiert schon")
+        logger.info(f"Nutzer {data[i]['mergeTags']['email']} existiert schon")
     else:
         username = data[i]["mergeTags"]["email"]
         username = str(username).split("@", 1)[0]
         username = username.lower()
-        translate = str.maketrans({
-            "ä" : "ae",
-            "ö" : "oe",
-            "ü" : "ue"
-        })
+        translate = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue"})
         username = username.translate(translate)
         username = unidecode(username)
         new_user = keycloak_admin.create_user(
-            {"email": data[i]["mergeTags"]["email"],
-            "username": username,
-            "enabled": True,
-            "firstName": data[i]["mergeTags"]["personFirstName"],
-            "lastName": data[i]["mergeTags"]["personLastName"],
-            "emailVerified": True},
-            exist_ok=False
-            )
+            {
+                "email": data[i]["mergeTags"]["email"],
+                "username": username,
+                "enabled": True,
+                "firstName": data[i]["mergeTags"]["personFirstName"],
+                "lastName": data[i]["mergeTags"]["personLastName"],
+                "emailVerified": True,
+            },
+            exist_ok=False,
+        )
         logger.info(f"Nutzer {username} wurde erstellt")
 
         new_user_id = keycloak_admin.get_user_id(username)
@@ -73,7 +71,7 @@ for i in range(50):
             if i["name"] == "Mitglied":
                 group_id = i["id"]
                 break
-        
+
         if group_id:
             keycloak_admin.group_user_add(new_user_id, group_id)
             logger.info(f"Dem Nutzer {username} wurde der Gruppe Mitglied hinzugefügt")
