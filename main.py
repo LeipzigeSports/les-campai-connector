@@ -1,6 +1,7 @@
-import requests
 import json
 import os
+
+import httpx
 from keycloak import KeycloakAdmin, KeycloakOpenIDConnection
 from unidecode import unidecode
 from dotenv import load_dotenv
@@ -33,10 +34,10 @@ header = {
     "Authorization": api_key,
 }
 
-response = requests.get(user_count, headers=header)
+response = httpx.get(user_count, headers=header)
 
 user_url = f"{base_url}contacts?organisation={organisation_id}&mode=query"
-user = requests.get(user_url, headers=header)
+user = httpx.get(user_url, headers=header)
 data = json.loads(user.text)
 for i in range(50):
     email_check = keycloak_admin.get_users({"email" : data[i]["mergeTags"]["email"]})
