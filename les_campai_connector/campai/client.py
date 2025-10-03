@@ -4,7 +4,7 @@ import httpx
 from httpx import Request, Response
 from pydantic import RootModel
 
-from .model import ResourceT, Organisation
+from .model import ResourceT, Organisation, Contact
 from .params import GetListKwargs, build_page_params, build_filter_params
 
 
@@ -34,3 +34,14 @@ class CampaiClient(object):
 
     def get_organisations(self, **params: Unpack[GetListKwargs]) -> list[Organisation]:
         return self.__get_resources(Organisation, "organisations", **params)
+
+    def get_contacts(self, organisation: Organisation | str, **params: Unpack[GetListKwargs]) -> list[Contact]:
+        organisation_id = organisation
+
+        if isinstance(organisation, Organisation):
+            organisation_id = organisation.id
+
+        filter_params = params.get("filter", None) or {}
+        params["filter"] = filter_params | {"organisation": organisation_id}
+
+        return self.__get_resources(Contact, "contacts", **params)
