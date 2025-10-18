@@ -1,0 +1,194 @@
+from enum import IntFlag, auto, Enum
+from typing import NamedTuple
+
+import click
+import httpx
+from keycloak import KeycloakAdmin, KeycloakOpenIDConnection
+from loguru import logger
+
+from les_campai_connector import kc
+from les_campai_connector.campai import CampaiClient, CampaiAuth, Contact
+from les_campai_connector.config import Settings
+from les_campai_connector.kc import MinimalUserRepresentation, MinimalGroupRepresentation
+
+
+class MemberAction(IntFlag):
+    CREATE = auto()
+    DEACTIVATE = auto()
+    UPDATE_EMAIL = auto()
+    UPDATE_FIRST_NAME = auto()
+    UPDATE_LAST_NAME = auto()
+    ADD_DEFAULT_GROUP = auto()
+    ADD_CAMPAI_ID = auto()
+
+
+NO_ACTION = 0
+
+
+def is_flag_set(x: int, action: MemberAction) -> bool:
+    return (x & action) != 0
+
+
+class SyncOperation(NamedTuple):
+    kc_user: dict | None
+    contact: Contact
+    actions: MemberAction
+
+
+@click.group()
+def app():
+    pass
+
+
+def is_contact_active(contact: Contact):
+    return contact.membership.status in ("willLeave", "isActive")
+
+
+def get_keycloak_user_update_flags(
+    contact: Contact,
+    kc_user: MinimalUserRepresentation,
+    kc_user_groups: list[MinimalGroupRepresentation],
+    default_group: MinimalGroupRepresentation,
+) -> MemberAction:
+    actions = 0
+
+    if kc_user.email != contact.communication.email:
+        actions |= MemberAction.UPDATE_EMAIL
+
+    if kc_user.first_name != contact.personal.person_first_name:
+        actions |= MemberAction.UPDATE_FIRST_NAME
+
+    if kc_user.last_name != contact.personal.person_last_name:
+        actions |= MemberAction.UPDATE_LAST_NAME
+
+    # check if campai user id attribute exists and matches
+    if contact.id not in (kc_user.attributes.get(kc.ATTRIBUTE_CAMPAI_ID) or []):
+        actions |= MemberAction.ADD_CAMPAI_ID
+
+    # check if default group id exists in user groups
+    if default_group.id not in [g.id for g in kc_user_groups]:
+        actions |= MemberAction.ADD_DEFAULT_GROUP
+
+    return actions
+
+
+@app.command()
+def sync():
+    settings = Settings()
+
+    logger.info(f"Using Campai API at {settings.campai.base_url}")
+
+    campai = CampaiClient(
+        client=httpx.Client(
+            base_url=settings.campai.base_url, auth=CampaiAuth(settings.campai.api_key.get_secret_value())
+        )
+    )
+
+    organisations = campai.get_organisations(filter={"name": settings.sync.organisation_name})
+
+    if len(organisations) != 1:
+        logger.error(
+            f'Expected to find one organisation named "{settings.sync.organisation_name}", found {len(organisations)}'
+        )
+        exit(1)
+
+    organisation = organisations.pop()
+    logger.info(f'Found organisation named "{organisation.name}" with ID {organisation.id}')
+
+    logger.info(f"Using Keycloak Admin API at {settings.keycloak.url} as {settings.keycloak.client_id}")
+
+    kc_admin = KeycloakAdmin(
+        connection=KeycloakOpenIDConnection(
+            server_url=settings.keycloak.url,
+            realm_name=settings.keycloak.realm_name,
+            client_id=settings.keycloak.client_id,
+            client_secret_key=settings.keycloak.client_secret.get_secret_value(),
+        )
+    )
+
+    default_group_raw = kc.find_group_by_name(kc_admin, settings.sync.default_group_name)
+
+    if default_group_raw is None:
+        logger.error(f'Couldn\'t find Keycloak group named "{settings.sync.default_group_name}"')
+        exit(1)
+
+    default_group = kc.must_parse_into_group(default_group_raw)
+    logger.info(f'Found group named "{default_group.name}" with ID {default_group.id}')
+    logger.info("Fetching users from Campai")
+
+    page_limit = 50
+    page_skip = 0
+
+    sync_queue: list[SyncOperation] = []
+
+    while True:
+        contacts = campai.get_contacts(organisation, page={"limit": page_limit, "skip": page_skip})
+
+        if len(contacts) == 0:
+            break
+
+        for contact in contacts:
+            # try to find by campai ID first
+            kc_user = kc.find_user_by_campai_id(kc_admin, contact.id)
+
+            # if that doesn't succeed, try to find by e-mail next
+            if kc_user is None and contact.communication.email is not None:
+                kc_user = kc.find_user_by_email(kc_admin, contact.communication.email)
+
+            # check some pre-conditions
+            is_active = is_contact_active(contact)
+            is_keycloak_user_created = kc_user is not None
+
+            member_actions = NO_ACTION
+
+            # check if user needs to be created
+            if is_active and not is_keycloak_user_created:
+                member_actions |= MemberAction.CREATE
+
+            # check if user needs to be updated
+            if is_keycloak_user_created:
+                user = kc.must_parse_into_user(kc_user)
+                user_groups = kc.must_parse_into_groups(kc_admin.get_user_groups(user.id))
+                member_actions |= get_keycloak_user_update_flags(contact, user, user_groups, default_group)
+
+            # check if user needs to be deactivated
+            if not is_active and is_keycloak_user_created:
+                member_actions |= MemberAction.DEACTIVATE
+
+            sync_queue.append(SyncOperation(kc_user=kc_user, contact=contact, actions=member_actions))
+
+        page_skip += page_limit
+
+    for sync_op in sync_queue:
+        contact = sync_op.contact
+
+        if sync_op.actions == NO_ACTION:
+            continue
+
+        if is_flag_set(sync_op.actions, MemberAction.CREATE):
+            click.secho("[+] ", bold=True, fg="green", nl=False)
+            click.echo(
+                f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
+                f"({contact.communication.email}) will be created"
+            )
+        elif is_flag_set(sync_op.actions, MemberAction.DEACTIVATE):
+            click.secho("[-] ", bold=True, fg="red", nl=False)
+            click.echo(
+                f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
+                f"({contact.communication.email}) will be deactivated"
+            )
+        else:
+            click.secho("[~] ", bold=True, fg="yellow", nl=False)
+            click.echo(
+                f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
+                f"({contact.communication.email}) will be updated ({repr(sync_op.actions)})"
+            )
+
+    if not settings.sync.auto_apply:
+        click.confirm("Continue?", abort=True, prompt_suffix=" ")
+
+    logger.info("Starting sync")
+
+
+if __name__ == "__main__":
+    app()
