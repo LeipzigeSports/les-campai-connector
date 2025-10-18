@@ -14,7 +14,8 @@ dependencies = [
     "unidecode (>=1.4.0,<2.0.0)",
     "httpx (>=0.28.1,<0.29.0)",
     "pydantic[email] (>=2.11.9,<3.0.0)",
-    "pydantic-settings (>=2.11.0,<3.0.0)"
+    "pydantic-settings (>=2.11.0,<3.0.0)",
+    "click (>=8.3.0,<9.0.0)"
 ]
 
 [project.scripts]
