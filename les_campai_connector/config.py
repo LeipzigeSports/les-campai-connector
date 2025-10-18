@@ -14,7 +14,14 @@ class KeycloakConfig(BaseModel):
     realm_name: str
 
 
+class SyncConfig(BaseModel):
+    organisation_name: str
+    default_group_name: str
+    auto_apply: bool
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", env_nested_delimiter="__")
     keycloak: KeycloakConfig
     campai: CampaiConfig
+    sync: SyncConfig
