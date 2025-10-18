@@ -35,8 +35,8 @@ ContactMembershipStatus = Literal["hasLeft", "willLeave", "isActive", "willEnter
 class ContactPersonal(CampaiBaseModel):
     is_person: bool
     is_organisation: bool
-    person_first_name: str
-    person_last_name: str
+    person_first_name: str | None
+    person_last_name: str | None
 
 
 class ContactCommunication(CampaiBaseModel):
