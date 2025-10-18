@@ -50,7 +50,7 @@ def get_keycloak_user_update_flags(
     kc_user_groups: list[MinimalGroupRepresentation],
     default_group: MinimalGroupRepresentation,
 ) -> MemberAction:
-    actions = 0
+    actions = NO_ACTION
 
     if kc_user.email != contact.communication.email:
         actions |= MemberAction.UPDATE_EMAIL
