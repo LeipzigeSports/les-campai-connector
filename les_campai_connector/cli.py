@@ -14,6 +14,7 @@ from les_campai_connector.kc import MinimalUserRepresentation, MinimalGroupRepre
 
 class MemberAction(IntFlag):
     CREATE = auto()
+    ACTIVATE = auto()
     DEACTIVATE = auto()
     UPDATE_EMAIL = auto()
     UPDATE_FIRST_NAME = auto()
@@ -23,10 +24,7 @@ class MemberAction(IntFlag):
 
 
 NO_ACTION = 0
-
-
-def is_flag_set(x: int, action: MemberAction) -> bool:
-    return (x & action) != 0
+UPDATE_ACTIONS = ~(MemberAction.CREATE | MemberAction.ACTIVATE | MemberAction.DEACTIVATE)
 
 
 class SyncOperation(NamedTuple):
@@ -148,12 +146,14 @@ def sync():
             # check if user needs to be updated
             if is_keycloak_user_created:
                 user = kc.must_parse_into_user(kc_user)
+
+                if user.enabled and not is_active:
+                    member_actions |= MemberAction.DEACTIVATE
+                elif not user.enabled and is_active:
+                    member_actions |= MemberAction.ACTIVATE
+
                 user_groups = kc.must_parse_into_groups(kc_admin.get_user_groups(user.id))
                 member_actions |= get_keycloak_user_update_flags(contact, user, user_groups, default_group)
-
-            # check if user needs to be deactivated
-            if not is_active and is_keycloak_user_created:
-                member_actions |= MemberAction.DEACTIVATE
 
             sync_queue.append(SyncOperation(kc_user=kc_user, contact=contact, actions=member_actions))
 
@@ -165,23 +165,35 @@ def sync():
         if sync_op.actions == NO_ACTION:
             continue
 
-        if is_flag_set(sync_op.actions, MemberAction.CREATE):
-            click.secho("[+] ", bold=True, fg="green", nl=False)
+        if MemberAction.CREATE in sync_op.actions:
+            click.secho("[*] ", bold=True, fg="blue", nl=False)
             click.echo(
                 f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
                 f"({contact.communication.email}) will be created"
             )
-        elif is_flag_set(sync_op.actions, MemberAction.DEACTIVATE):
+
+        if MemberAction.ACTIVATE in sync_op.actions:
+            click.secho("[*] ", bold=True, fg="green", nl=False)
+            click.echo(
+                f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
+                f"({contact.communication.email}) will be activated"
+            )
+
+        if MemberAction.DEACTIVATE in sync_op.actions:
             click.secho("[-] ", bold=True, fg="red", nl=False)
             click.echo(
                 f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
                 f"({contact.communication.email}) will be deactivated"
             )
-        else:
+
+        # check if any additional actions need to be taken
+        selected_update_actions = sync_op.actions & UPDATE_ACTIONS
+
+        if selected_update_actions != NO_ACTION:
             click.secho("[~] ", bold=True, fg="yellow", nl=False)
             click.echo(
                 f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
-                f"({contact.communication.email}) will be updated ({repr(sync_op.actions)})"
+                f"({contact.communication.email}) will be updated ({repr(selected_update_actions)})"
             )
 
     if not settings.sync.auto_apply:
