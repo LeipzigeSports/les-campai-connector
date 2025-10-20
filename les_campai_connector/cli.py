@@ -13,8 +13,12 @@ from pydantic import RootModel
 from les_campai_connector import kc
 from les_campai_connector.campai import CampaiClient, CampaiAuth, Contact
 from les_campai_connector.config import Settings
-from les_campai_connector.kc import MinimalUserRepresentation, MinimalGroupRepresentation, \
-    MinimalUpdateUserRepresentation, must_parse_into_user
+from les_campai_connector.kc import (
+    MinimalUserRepresentation,
+    MinimalGroupRepresentation,
+    MinimalUpdateUserRepresentation,
+    must_parse_into_user,
+)
 
 
 class MemberAction(IntFlag):
@@ -33,6 +37,7 @@ UPDATE_ACTIONS = ~(MemberAction.CREATE | MemberAction.ACTIVATE | MemberAction.DE
 
 ALLOWED_USERNAME_LETTERS = string.ascii_letters + string.digits + ".-_"
 
+
 class SyncOperation(NamedTuple):
     kc_user: dict | None
     contact: Contact
@@ -42,6 +47,7 @@ class SyncOperation(NamedTuple):
 @click.group()
 def app():
     pass
+
 
 def sanitize_username(username: str) -> str:
     return "".join(c for c in username if c in ALLOWED_USERNAME_LETTERS)
@@ -250,9 +256,7 @@ def sync(cache_to: Path | None, cache_from: Path | None):
                 email_verified=True,
                 username=kc_username,
                 enabled=True,
-                attributes={
-                    kc.ATTRIBUTE_CAMPAI_ID: [contact.id]
-                },
+                attributes={kc.ATTRIBUTE_CAMPAI_ID: [contact.id]},
             ).model_dump(mode="json", by_alias=True, exclude_none=True)
 
             kc_user_id = kc_admin.create_user(kc_user, exist_ok=False)
@@ -272,10 +276,7 @@ def sync(cache_to: Path | None, cache_from: Path | None):
             user.username = sanitize_username(user.username.rstrip(kc.NO_MEMBER_SUFFIX))
 
             kc_admin.update_user(user.id, user.model_dump(mode="json", by_alias=True))
-            logger.info(
-                f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
-                f"activated"
-            )
+            logger.info(f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} activated")
             continue
 
         if MemberAction.DEACTIVATE in sync_op.actions:
@@ -291,11 +292,9 @@ def sync(cache_to: Path | None, cache_from: Path | None):
 
             kc_admin.update_user(user.id, user.model_dump(mode="json", by_alias=True))
             logger.info(
-                f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
-                f"deactivated"
+                f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} deactivated"
             )
             continue
-
 
         # check if any additional actions need to be taken
         selected_update_actions = sync_op.actions & UPDATE_ACTIONS
@@ -327,10 +326,7 @@ def sync(cache_to: Path | None, cache_from: Path | None):
             if MemberAction.ADD_DEFAULT_GROUP in sync_op.actions:
                 kc_admin.group_user_add(user.id, default_group.id)
 
-            logger.info(
-                f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
-                f"updated"
-            )
+            logger.info(f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} updated")
 
 
 if __name__ == "__main__":
