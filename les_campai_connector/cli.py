@@ -60,7 +60,7 @@ def create_username_from_contact(contact: Contact) -> str:
 
         username += c
 
-    return username
+    return username.lower()
 
 
 def is_contact_active(contact: Contact):
@@ -288,6 +288,22 @@ def sync(cache_to: Path | None, cache_from: Path | None):
             logger.info(
                 f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
                 f"activated"
+            )
+            continue
+
+        if MemberAction.DEACTIVATE in sync_op.actions:
+            user = kc.must_parse_into_user(sync_op.kc_user)
+
+            # deactivate user and add _nomember suffix
+            user.enabled = False
+
+            if not user.username.endswith(kc.NO_MEMBER_SUFFIX):
+                user.username = user.username + kc.NO_MEMBER_SUFFIX
+
+            kc_admin.update_user(user.id, user.model_dump(mode="json", by_alias=True))
+            logger.info(
+                f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
+                f"deactivated"
             )
             continue
 
