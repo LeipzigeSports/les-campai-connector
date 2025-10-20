@@ -14,7 +14,7 @@ from les_campai_connector import kc
 from les_campai_connector.campai import CampaiClient, CampaiAuth, Contact
 from les_campai_connector.config import Settings
 from les_campai_connector.kc import MinimalUserRepresentation, MinimalGroupRepresentation, \
-    MinimalUpdateUserRepresentation
+    MinimalUpdateUserRepresentation, must_parse_into_user
 
 
 class MemberAction(IntFlag):
@@ -266,7 +266,7 @@ def sync(cache_to: Path | None, cache_from: Path | None):
                 attributes={
                     kc.ATTRIBUTE_CAMPAI_ID: [contact.id]
                 },
-            ).model_dump(by_alias=True, exclude_none=True)
+            ).model_dump(mode="json", by_alias=True, exclude_none=True)
 
             kc_user_id = kc_admin.create_user(kc_user, exist_ok=False)
             kc_admin.group_user_add(kc_user_id, str(default_group.id))
@@ -275,6 +275,21 @@ def sync(cache_to: Path | None, cache_from: Path | None):
                 f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
                 f"created (ID: {kc_user_id}, username: {kc_username})"
             )
+            continue
+
+        if MemberAction.ACTIVATE in sync_op.actions:
+            user = kc.must_parse_into_user(sync_op.kc_user)
+
+            # re-enable user and remove _nomember suffix, if exists
+            user.enabled = True
+            user.username = user.username.rstrip(kc.NO_MEMBER_SUFFIX)
+
+            kc_admin.update_user(user.id, user.model_dump(mode="json", by_alias=True))
+            logger.info(
+                f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
+                f"activated"
+            )
+            continue
 
 
 if __name__ == "__main__":

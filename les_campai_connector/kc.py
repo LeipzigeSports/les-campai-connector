@@ -6,6 +6,7 @@ from pydantic.alias_generators import to_camel
 
 
 ATTRIBUTE_CAMPAI_ID = "campai-id"
+NO_MEMBER_SUFFIX = "_nomember"
 
 
 class MinimalUserRepresentation(BaseModel):
