@@ -31,7 +31,7 @@ class MemberAction(IntFlag):
 NO_ACTION = 0
 UPDATE_ACTIONS = ~(MemberAction.CREATE | MemberAction.ACTIVATE | MemberAction.DEACTIVATE)
 
-ALLOWED_USERNAME_LETTERS = string.ascii_letters + string.digits + "."
+ALLOWED_USERNAME_LETTERS = string.ascii_letters + string.digits + ".-_"
 
 class SyncOperation(NamedTuple):
     kc_user: dict | None
@@ -43,24 +43,8 @@ class SyncOperation(NamedTuple):
 def app():
     pass
 
-
-def create_username_from_contact(contact: Contact) -> str:
-    # it is assumed that email has been checked but better to be safe than sorry if logic changes eventually
-    assert contact.communication.email is not None
-
-    username = ""
-
-    # noinspection PyTypeChecker
-    for c in contact.communication.email:
-        if c == "@":
-            break
-
-        if c not in ALLOWED_USERNAME_LETTERS:
-            continue
-
-        username += c
-
-    return username.lower()
+def sanitize_username(username: str) -> str:
+    return "".join(c for c in username if c in ALLOWED_USERNAME_LETTERS)
 
 
 def is_contact_active(contact: Contact):
@@ -255,7 +239,10 @@ def sync(cache_to: Path | None, cache_from: Path | None):
                 )
                 continue
 
-            kc_username = create_username_from_contact(contact)
+            # email is guaranteed to be valid so splitting and getting 0 index is safe
+            contact_email_name = contact.communication.email.split("@")[0]
+            kc_username = sanitize_username(contact_email_name)
+
             kc_user = MinimalUpdateUserRepresentation(
                 first_name=contact.personal.person_first_name,
                 last_name=contact.personal.person_last_name,
@@ -282,7 +269,7 @@ def sync(cache_to: Path | None, cache_from: Path | None):
 
             # re-enable user and remove _nomember suffix, if exists
             user.enabled = True
-            user.username = user.username.rstrip(kc.NO_MEMBER_SUFFIX)
+            user.username = sanitize_username(user.username.rstrip(kc.NO_MEMBER_SUFFIX))
 
             kc_admin.update_user(user.id, user.model_dump(mode="json", by_alias=True))
             logger.info(
@@ -300,12 +287,50 @@ def sync(cache_to: Path | None, cache_from: Path | None):
             if not user.username.endswith(kc.NO_MEMBER_SUFFIX):
                 user.username = user.username + kc.NO_MEMBER_SUFFIX
 
+            user.username = sanitize_username(user.username)
+
             kc_admin.update_user(user.id, user.model_dump(mode="json", by_alias=True))
             logger.info(
                 f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
                 f"deactivated"
             )
             continue
+
+
+        # check if any additional actions need to be taken
+        selected_update_actions = sync_op.actions & UPDATE_ACTIONS
+
+        if selected_update_actions != NO_ACTION:
+            user = kc.must_parse_into_user(sync_op.kc_user)
+            user_mod = MinimalUpdateUserRepresentation()
+
+            # sanitize username if necessary
+            user_mod.username = sanitize_username(user.username)
+
+            if MemberAction.UPDATE_EMAIL in sync_op.actions:
+                user_mod.email = contact.communication.email
+
+            if MemberAction.UPDATE_FIRST_NAME in sync_op.actions:
+                user_mod.first_name = contact.personal.person_first_name
+
+            if MemberAction.UPDATE_LAST_NAME in sync_op.actions:
+                user_mod.last_name = contact.personal.person_last_name
+
+            if MemberAction.ADD_CAMPAI_ID in sync_op.actions:
+                user_mod.attributes = {kc.ATTRIBUTE_CAMPAI_ID: [contact.id]}
+
+            user_mod_json = user_mod.model_dump(by_alias=True, mode="json", exclude_none=False, exclude_unset=True)
+            sync_op.kc_user.update(user_mod_json)
+
+            kc_admin.update_user(user.id, sync_op.kc_user)
+
+            if MemberAction.ADD_DEFAULT_GROUP in sync_op.actions:
+                kc_admin.group_user_add(user.id, default_group.id)
+
+            logger.info(
+                f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
+                f"updated"
+            )
 
 
 if __name__ == "__main__":
