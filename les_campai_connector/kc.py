@@ -21,6 +21,17 @@ class MinimalUserRepresentation(BaseModel):
     groups: Annotated[list[str], Field(default_factory=list)]
 
 
+class MinimalUpdateUserRepresentation(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, validate_by_name=True)
+    first_name: str | None = None
+    last_name: str | None = None
+    enabled: bool | None = None
+    username: str | None = None
+    email: EmailStr | None = None
+    email_verified: bool | None = None
+    attributes: dict[str, list[str]] | None = None
+
+
 class MinimalGroupRepresentation(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel)
     id: UUID4
