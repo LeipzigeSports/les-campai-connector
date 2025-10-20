@@ -169,21 +169,21 @@ def sync():
             click.secho("[*] ", bold=True, fg="blue", nl=False)
             click.echo(
                 f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
-                f"({contact.communication.email}) will be created"
+                f"(ID: {contact.id}, email: {contact.communication.email}) will be created"
             )
 
         if MemberAction.ACTIVATE in sync_op.actions:
             click.secho("[*] ", bold=True, fg="green", nl=False)
             click.echo(
                 f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
-                f"({contact.communication.email}) will be activated"
+                f"(ID: {contact.id}, email: {contact.communication.email}) will be activated"
             )
 
         if MemberAction.DEACTIVATE in sync_op.actions:
             click.secho("[-] ", bold=True, fg="red", nl=False)
             click.echo(
                 f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
-                f"({contact.communication.email}) will be deactivated"
+                f"(ID: {contact.id}, email: {contact.communication.email}) will be deactivated"
             )
 
         # check if any additional actions need to be taken
@@ -193,7 +193,8 @@ def sync():
             click.secho("[~] ", bold=True, fg="yellow", nl=False)
             click.echo(
                 f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
-                f"({contact.communication.email}) will be updated ({repr(selected_update_actions)})"
+                f"(ID: {contact.id}, email: {contact.communication.email}) will be updated "
+                f"({repr(selected_update_actions)})"
             )
 
     if not settings.sync.auto_apply:
