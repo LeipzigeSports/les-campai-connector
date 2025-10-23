@@ -65,7 +65,8 @@ def get_keycloak_user_update_flags(
 ) -> MemberAction:
     actions = NO_ACTION
 
-    if kc_user.email != contact.communication.email:
+    # need to make email lowercase because keycloak automatically lowercases emails
+    if kc_user.email != contact.communication.email.lower():
         actions |= MemberAction.UPDATE_EMAIL
 
     if kc_user.first_name != contact.personal.person_first_name:
@@ -266,7 +267,6 @@ def sync(cache_to: Path | None, cache_from: Path | None):
                 f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} "
                 f"created (ID: {kc_user_id}, username: {kc_username})"
             )
-            continue
 
         if MemberAction.ACTIVATE in sync_op.actions:
             user = kc.must_parse_into_user(sync_op.kc_user)
@@ -277,7 +277,6 @@ def sync(cache_to: Path | None, cache_from: Path | None):
 
             kc_admin.update_user(user.id, user.model_dump(mode="json", by_alias=True))
             logger.info(f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} activated")
-            continue
 
         if MemberAction.DEACTIVATE in sync_op.actions:
             user = kc.must_parse_into_user(sync_op.kc_user)
@@ -294,7 +293,6 @@ def sync(cache_to: Path | None, cache_from: Path | None):
             logger.info(
                 f"User for {contact.personal.person_first_name} {contact.personal.person_last_name} deactivated"
             )
-            continue
 
         # check if any additional actions need to be taken
         selected_update_actions = sync_op.actions & UPDATE_ACTIONS
