@@ -164,7 +164,7 @@ def sync(cache_to: Path | None, cache_from: Path | None):
 
             for contact in next_contacts:
                 # skip contacts that aren't people
-                if contact.personal.is_person and not contact.personal.is_organisation:
+                if not contact.personal.is_person or contact.personal.is_organisation:
                     continue
 
                 # check if a user with same e-mail has already been added to dict
