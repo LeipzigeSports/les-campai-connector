@@ -1,6 +1,8 @@
+import json
 from typing import Annotated
 
 from keycloak import KeycloakAdmin
+from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field, EmailStr, UUID4, RootModel
 from pydantic.alias_generators import to_camel
 
@@ -43,6 +45,9 @@ def _find_user_by_query(kc_admin: KeycloakAdmin, query: dict) -> dict | None:
     users = kc_admin.get_users(query)
 
     if len(users) != 1:
+        if len(users) > 1:
+            logger.warning(f"Query {json.dumps(query)} returned more than one result while expecting to get at most one")
+
         return None
 
     return users.pop()
