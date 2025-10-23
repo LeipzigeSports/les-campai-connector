@@ -1,6 +1,6 @@
 import json
 import string
-from enum import IntFlag, auto, Enum
+from enum import IntFlag, auto
 from pathlib import Path
 from typing import NamedTuple
 
@@ -17,7 +17,6 @@ from les_campai_connector.kc import (
     MinimalUserRepresentation,
     MinimalGroupRepresentation,
     MinimalUpdateUserRepresentation,
-    must_parse_into_user,
 )
 
 
@@ -212,7 +211,7 @@ def sync(cache_to: Path | None, cache_from: Path | None):
 
         # if that doesn't succeed, try to find by e-mail next
         if kc_user is None and contact.communication.email is not None:
-            kc_user = kc.find_user_by_email(kc_admin, contact.communication.email)
+            kc_user = kc.find_user_by_email(kc_admin, str(contact.communication.email))
 
         # check some pre-conditions
         is_active = is_contact_active(contact)
@@ -265,7 +264,8 @@ def sync(cache_to: Path | None, cache_from: Path | None):
 
             # these operations apply to all users whether they're activated
             # need to make email lowercase because keycloak automatically lowercases emails
-            if user.email != contact.communication.email.lower():
+            campai_email = None if contact.communication.email is None else str(contact.communication.email).lower()
+            if user.email != campai_email:
                 member_actions |= MemberAction.UPDATE_EMAIL
 
             if user.first_name != contact.personal.person_first_name:
@@ -351,7 +351,7 @@ def sync(cache_to: Path | None, cache_from: Path | None):
                 continue
 
             # email is guaranteed to be valid so splitting and getting 0 index is safe
-            contact_email_name = contact.communication.email.split("@")[0]
+            contact_email_name = str(contact.communication.email).split("@")[0]
             update_user.username = sanitize_username(contact_email_name)
 
         # if the user already exists, populate the username (will be necessary later)
