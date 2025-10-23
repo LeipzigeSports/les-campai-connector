@@ -138,6 +138,8 @@ def sync(cache_to: Path | None, cache_from: Path | None):
         with cache_from.open(mode="r", encoding="utf-8") as f:
             contacts = RootModel[list[Contact]].model_validate_json(f.read()).root
     else:
+        email_to_contact: dict[str, Contact] = {}
+
         page_limit = 50
         page_skip = 0
 
@@ -147,8 +149,35 @@ def sync(cache_to: Path | None, cache_from: Path | None):
             if len(next_contacts) == 0:
                 break
 
-            contacts.extend(next_contacts)
+            for contact in next_contacts:
+                # check if a user with same e-mail has already been added to dict
+                existing_contact = email_to_contact.get(str(contact.communication.email), None)
+
+                if existing_contact is not None:
+                    # if this is the case and the already existing contact has a lower membership number
+                    # (meaning they joined earlier), leave the dict entry untouched and skip this contact.
+                    # otherwise overwrite.
+                    current_num = contact.membership.number_sort
+                    existing_num = existing_contact.membership.number_sort
+
+                    # for some reason the membership number is optional ...
+                    if current_num is None or existing_num is None:
+                        logger.warning(
+                            f"Contacts {contact.id} and {existing_contact.id} have the same e-mail address "
+                            f"({contact.communication.email}) but cannot be compared since they are missing "
+                            "an account number, using existing contact"
+                        )
+                        continue
+
+                    if contact.membership.number_sort > existing_contact.membership.number_sort:
+                        continue
+
+                # add user to dict (given that another user with a lower membership number isn't already present)
+                email_to_contact[str(contact.communication.email)] = contact
+
             page_skip += page_limit
+
+        contacts = list(email_to_contact.values())
 
         if cache_to is not None:
             with cache_to.open(mode="w", encoding="utf-8") as f:

@@ -48,6 +48,7 @@ class ContactMembership(CampaiBaseModel):
     leave_date: datetime | None
     termination_date: datetime | None
     status: ContactMembershipStatus | None
+    number_sort: int | None
 
 
 class Contact(CampaiBaseModel, IdMixin, MetadataMixin):
