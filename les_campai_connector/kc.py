@@ -46,7 +46,9 @@ def _find_user_by_query(kc_admin: KeycloakAdmin, query: dict) -> dict | None:
 
     if len(users) != 1:
         if len(users) > 1:
-            logger.warning(f"Query {json.dumps(query)} returned more than one result while expecting to get at most one")
+            logger.warning(
+                f"Query {json.dumps(query)} returned more than one result while expecting to get at most one"
+            )
 
         return None
 
