@@ -453,7 +453,7 @@ def sync(cache_to: Path | None, cache_from: Path | None):
     # noinspection PyBroadException
     try:
         _do_sync(settings, cache_to, cache_from)
-        uptime_client.up("Sync successul")
+        uptime_client.up("Sync successful")
     except Exception:
         logger.exception("Sync failed")
         uptime_client.down("Sync failed")
