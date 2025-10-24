@@ -1,6 +1,6 @@
 import json
 import string
-from enum import IntFlag, auto
+from enum import IntFlag
 from pathlib import Path
 from typing import NamedTuple
 
@@ -21,18 +21,18 @@ from les_campai_connector.kc import (
 
 
 class MemberAction(IntFlag):
-    CREATE = auto()
-    ACTIVATE = auto()
-    DEACTIVATE = auto()
-    UPDATE_EMAIL = auto()
-    UPDATE_FIRST_NAME = auto()
-    UPDATE_LAST_NAME = auto()
-    ADD_DEFAULT_GROUP = auto()
-    REMOVE_ALL_GROUPS = auto()
-    ADD_CAMPAI_ID = auto()
-    REMOVE_NO_MEMBER_SUFFIX = auto()
-    ADD_NO_MEMBER_SUFFIX = auto()
-    SET_EMAIL_VALIDATED = auto()
+    CREATE = 1 << 0
+    ACTIVATE = 1 << 1
+    DEACTIVATE = 1 << 2
+    UPDATE_EMAIL = 1 << 3
+    UPDATE_FIRST_NAME = 1 << 4
+    UPDATE_LAST_NAME = 1 << 5
+    ADD_DEFAULT_GROUP = 1 << 6
+    REMOVE_ALL_GROUPS = 1 << 7
+    ADD_CAMPAI_ID = 1 << 8
+    REMOVE_NO_MEMBER_SUFFIX = 1 << 9
+    ADD_NO_MEMBER_SUFFIX = 1 << 10
+    SET_EMAIL_VALIDATED = 1 << 11
 
 
 NO_ACTION = 0
