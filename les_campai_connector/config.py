@@ -1,4 +1,4 @@
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, SecretStr, HttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +18,7 @@ class SyncConfig(BaseModel):
     organisation_name: str
     default_group_name: str
     auto_apply: bool
+    uptime_endpoint: HttpUrl
 
 
 class Settings(BaseSettings):

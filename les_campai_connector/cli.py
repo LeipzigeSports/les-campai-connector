@@ -10,7 +10,7 @@ from keycloak import KeycloakAdmin, KeycloakOpenIDConnection
 from loguru import logger
 from pydantic import RootModel
 
-from les_campai_connector import kc
+from les_campai_connector import kc, uptime
 from les_campai_connector.campai import CampaiClient, CampaiAuth, Contact
 from les_campai_connector.config import Settings
 from les_campai_connector.kc import (
@@ -101,12 +101,7 @@ def get_keycloak_user_update_flags(
     return actions
 
 
-@app.command()
-@click.option("--cache-to", type=click.Path(dir_okay=False, path_type=Path))
-@click.option("--cache-from", type=click.Path(dir_okay=False, exists=True, path_type=Path))
-def sync(cache_to: Path | None, cache_from: Path | None):
-    settings = Settings()
-
+def _do_sync(settings: Settings, cache_to: Path | None, cache_from: Path | None):
     logger.info(f"Using Campai API at {settings.campai.base_url}")
 
     campai = CampaiClient(
@@ -446,6 +441,22 @@ def sync(cache_to: Path | None, cache_from: Path | None):
 
             for group in user_groups:
                 kc_admin.group_user_remove(user_id, str(group.id))
+
+
+@app.command()
+@click.option("--cache-to", type=click.Path(dir_okay=False, path_type=Path))
+@click.option("--cache-from", type=click.Path(dir_okay=False, exists=True, path_type=Path))
+def sync(cache_to: Path | None, cache_from: Path | None):
+    settings = Settings()
+    uptime_client = uptime.UptimeKumaClient(str(settings.sync.uptime_endpoint))
+
+    # noinspection PyBroadException
+    try:
+        _do_sync(settings, cache_to, cache_from)
+        uptime_client.up("Sync successul")
+    except Exception:
+        logger.exception("Sync failed")
+        uptime_client.down("Sync failed")
 
 
 if __name__ == "__main__":
