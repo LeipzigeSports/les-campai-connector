@@ -60,7 +60,11 @@ def find_user_by_campai_id(kc_admin: KeycloakAdmin, campai_id: str) -> dict | No
 
 
 def find_user_by_email(kc_admin: KeycloakAdmin, email: str) -> dict | None:
-    return _find_user_by_query(kc_admin, {"email": email})
+    return _find_user_by_query(kc_admin, {"email": email, "exact": True})
+
+
+def find_user_by_username(kc_admin: KeycloakAdmin, username: str) -> dict | None:
+    return _find_user_by_query(kc_admin, {"username": username, "exact": True})
 
 
 def find_group_by_name(kc_admin: KeycloakAdmin, name: str) -> dict | None:

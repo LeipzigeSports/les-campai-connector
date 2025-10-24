@@ -352,7 +352,25 @@ def sync(cache_to: Path | None, cache_from: Path | None):
 
             # email is guaranteed to be valid so splitting and getting 0 index is safe
             contact_email_name = str(contact.communication.email).split("@")[0]
-            update_user.username = sanitize_username(contact_email_name)
+
+            # try to find a unique username
+            base_username = sanitize_username(contact_email_name)
+            username_idx = 0
+
+            while True:
+                username = base_username
+
+                # if username_idx == 0, then we try the base username first with no modifications
+                if username_idx > 0:
+                    # otherwise add an increasing number to the username
+                    username += str(username_idx)
+
+                # if no user was found by this username, use it to create this user
+                if kc.find_user_by_username(kc_admin, username) is None:
+                    update_user.username = username
+                    break
+
+                username_idx += 1
 
         # if the user already exists, populate the username (will be necessary later)
         if sync_op.kc_user is not None:
