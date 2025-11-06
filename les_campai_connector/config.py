@@ -19,6 +19,7 @@ class SyncConfig(BaseModel):
     default_group_name: str
     auto_apply: bool
     uptime_endpoint: HttpUrl
+    uptime_enable: bool
 
 
 class Settings(BaseSettings):

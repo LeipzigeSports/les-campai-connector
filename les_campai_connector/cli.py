@@ -450,13 +450,24 @@ def sync(cache_to: Path | None, cache_from: Path | None):
     settings = Settings()
     uptime_client = uptime.UptimeKumaClient(str(settings.sync.uptime_endpoint))
 
+    sync_successful = True
+
     # noinspection PyBroadException
     try:
         _do_sync(settings, cache_to, cache_from)
-        uptime_client.up("Sync successful")
     except Exception:
         logger.exception("Sync failed")
-        uptime_client.down("Sync failed")
+        sync_successful = False
+
+    if settings.sync.uptime_enable:
+        # noinspection PyBroadException
+        try:
+            if sync_successful:
+                uptime_client.up("Sync successful")
+            else:
+                uptime_client.down("Sync failed")
+        except Exception:
+            logger.exception("Ping for uptime monitoring failed")
 
 
 if __name__ == "__main__":
