@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-lcc = "les_campai_connector.main:main"
+lcc = "les_campai_connector.cli:app"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
