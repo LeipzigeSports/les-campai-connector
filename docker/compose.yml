@@ -1,0 +1,23 @@
+services:
+
+  keycloak:
+    build: .
+    ports:
+    - "8080:8080"
+    command: ["start", "--hostname", "localhost", "--optimized", "--http-enabled", "true"]
+    depends_on:
+      - keycloak-db
+
+  keycloak-db:
+    image: postgres:17.2
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: keycloakdb
+    volumes:
+      - ./dump:/tmp/dump
+      - ./01-restore.sh:/docker-entrypoint-initdb.d/01-restore.sh
+      - pg-data:/var/lib/postgresql/data
+
+volumes:
+  pg-data:
