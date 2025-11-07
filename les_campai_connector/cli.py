@@ -72,35 +72,6 @@ def is_contact_active(contact: Contact):
     return contact.membership.status in ("willLeave", "isActive")
 
 
-def get_keycloak_user_update_flags(
-    contact: Contact,
-    kc_user: MinimalUserRepresentation,
-    kc_user_groups: list[MinimalGroupRepresentation],
-    default_group: MinimalGroupRepresentation,
-) -> MemberAction:
-    actions = NO_ACTION
-
-    # need to make email lowercase because keycloak automatically lowercases emails
-    if kc_user.email != contact.communication.email.lower():
-        actions |= MemberAction.UPDATE_EMAIL
-
-    if kc_user.first_name != contact.personal.person_first_name:
-        actions |= MemberAction.UPDATE_FIRST_NAME
-
-    if kc_user.last_name != contact.personal.person_last_name:
-        actions |= MemberAction.UPDATE_LAST_NAME
-
-    # check if campai user id attribute exists and matches
-    if contact.id not in (kc_user.attributes.get(kc.ATTRIBUTE_CAMPAI_ID) or []):
-        actions |= MemberAction.ADD_CAMPAI_ID
-
-    # check if default group id exists in user groups
-    if default_group.id not in [g.id for g in kc_user_groups]:
-        actions |= MemberAction.ADD_DEFAULT_GROUP
-
-    return actions
-
-
 def _do_sync(settings: Settings, cache_to: Path | None, cache_from: Path | None):
     logger.info(f"Using Campai API at {settings.campai.base_url}")
 
