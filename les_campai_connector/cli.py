@@ -13,11 +13,7 @@ from pydantic import RootModel
 from les_campai_connector import kc, uptime
 from les_campai_connector.campai import CampaiClient, CampaiAuth, Contact
 from les_campai_connector.config import Settings
-from les_campai_connector.kc import (
-    MinimalUserRepresentation,
-    MinimalGroupRepresentation,
-    MinimalUpdateUserRepresentation,
-)
+from les_campai_connector.kc import MinimalUpdateUserRepresentation
 
 
 class MemberAction(IntFlag):
