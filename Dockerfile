@@ -1,4 +1,4 @@
-FROM python:3.13-alpine3.21 AS builder
+FROM python:3.13-alpine3.22 AS builder
 
 WORKDIR /tmp
 COPY ./pyproject.toml ./poetry.lock ./
@@ -8,7 +8,7 @@ RUN set -ex && \
         poetry self add poetry-plugin-export==1.9.0 && \
         poetry export -n -f requirements.txt -o requirements.txt
 
-FROM python:3.13-alpine3.21
+FROM python:3.13-alpine3.22
 
 WORKDIR /app
 
