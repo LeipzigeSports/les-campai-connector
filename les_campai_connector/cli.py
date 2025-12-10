@@ -45,7 +45,7 @@ class SyncOperation(NamedTuple):
 
 @click.group()
 def app():
-    logger.add(Path(__file__).parent.parent / "logs" / "{time}.log", level="DEBUG")
+    logger.add(Path(__file__).parent.parent / "logs" / "les-campai-connector.log", level="DEBUG")
 
 
 def sanitize_username(username: str) -> str:
